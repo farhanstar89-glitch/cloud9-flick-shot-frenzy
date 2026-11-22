@@ -31,6 +31,19 @@
     }
   }
 
+  function notifyScoresChanged() {
+    // Live booth updates: the booth view listens for this (BroadcastChannel)
+    // and for the native 'storage' event localStorage fires in other tabs.
+    // The 2s poll in booth.js is only the fallback. All best-effort.
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        var bc = new BroadcastChannel('c9-frenzy-scores');
+        bc.postMessage({ type: 'scores-updated', at: Date.now() });
+        bc.close();
+      }
+    } catch (e) { /* ignore */ }
+  }
+
   function addScore(entry) {
     var scores = loadScores();
     var clean = {
@@ -46,6 +59,7 @@
     scores.push(clean);
     scores.sort(function (a, b) { return b.score - a.score; });
     saveScores(scores);
+    notifyScoresChanged();
     return { entry: clean, rank: scores.indexOf(clean) + 1, total: scores.length };
   }
 
@@ -59,6 +73,7 @@
 
   function clearScores() {
     try { global.localStorage.removeItem(STORAGE_KEY); } catch (e) { /* ignore */ }
+    notifyScoresChanged();
   }
 
   function loadSettings() {
@@ -66,7 +81,7 @@
       var raw = global.localStorage.getItem(SETTINGS_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) { /* ignore */ }
-    return { muted: false, lastMode: 'precision' };
+    return { muted: false, lastMode: 'precision', durationMs: 60000 };
   }
 
   function saveSettings(s) {

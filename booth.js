@@ -1,11 +1,13 @@
 /* Cloud9 Flick Shot Frenzy — booth display view.
  * Second-monitor top-10 leaderboard. Reads the same localStorage key as the
- * game, refreshes every 2s, auto-cycles mode tabs every 8s. Fully offline.
+ * game. Updates live: the game posts a BroadcastChannel message and
+ * localStorage fires a 'storage' event in this tab the moment a score is
+ * saved; the 2s poll below is only the fallback. Fully offline.
  */
 (function () {
   'use strict';
 
-  var MODES = ['all', 'precision', 'reflex', 'chaos'];
+  var MODES = ['all', 'precision', 'reflex', 'chaos', 'track'];
   var current = 0;
 
   function esc(s) {
@@ -54,8 +56,18 @@
 
   render();
   tickClock();
-  setInterval(render, 2000); // live refresh from localStorage
+  setInterval(render, 2000); // fallback poll from localStorage
   setInterval(tickClock, 1000);
+  // live updates: instant re-render when the game saves a score
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'c9-flick-shot-frenzy.scores.v1') render();
+  });
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      var bc = new BroadcastChannel('c9-frenzy-scores');
+      bc.onmessage = function () { render(); };
+    }
+  } catch (e) { /* poll fallback covers it */ }
   setInterval(function () { // auto-cycle tabs for the booth crowd
     current = (current + 1) % MODES.length;
     render();

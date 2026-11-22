@@ -1,4 +1,4 @@
-# Methodology — Cloud9 Flick Shot Frenzy
+# Methodology — Frenzy (Cloud9 Flick-Shot Arcade)
 
 ## The problem (Category 3: Event Mini Game)
 
@@ -16,7 +16,7 @@ and the first target appears 2.4 seconds after you pick a mode.
 
 **A real gamer skill, not a toy.** Flick shots are the core mechanic of
 tactical FPS aim — the category brief explicitly suggests "a creative
-aim-trainer, a flick-shot tester, or a reaction-time drill". Three modes
+aim-trainer, a flick-shot tester, or a reaction-time drill". Four modes
 share one engine but train different slices of that skill:
 
 - **Precision** — big, slow, shrinking targets; score rewards dead-center
@@ -24,12 +24,22 @@ share one engine but train different slices of that skill:
 - **Reflex** — sub-second targets; score rewards fast flicks. The hard mode.
 - **Chaos** — many drifting targets plus decoys; target selection under
   pressure, with a real cost for clicking the wrong thing.
+- **Track** — one roaming mover; score rewards steady cursor tracking, a
+  genuinely different skill from flicking. The mover steers smoothly (its
+  velocity eases toward each new heading instead of snapping), the capture
+  ring forgives a few pixels of wobble, and the ring drains at half the
+  fill rate — so a brief slip costs time but never wipes the attempt.
 
-**The booth is the product, not an afterthought.** The score screen
-auto-resets after 25 s idle, the menu has a 30 s attract mode, the game
-auto-pauses if the window loses focus, and the leaderboard is a separate
-second-monitor view (`booth.html`) that reads the same local storage — no
-server, no Wi-Fi, no account, nothing to break at an event.
+**The booth is the product, not an afterthought.** Rounds default to 60
+seconds (the field's near-standard for booth throughput; a 90s classic round
+is one tap away on the menu). The score screen auto-resets to the attract
+screen after 15 s idle, the menu has a 30 s attract mode, the game
+auto-pauses if the window loses focus, a staff reset (button or `R` key)
+wipes the local leaderboard, and the leaderboard is a separate
+second-monitor view (`booth.html`) that reads the same local storage and
+updates the instant a score is saved (BroadcastChannel + `storage` event,
+2 s poll as fallback) — no server, no Wi-Fi, no account, nothing to break
+at an event.
 
 **Tuning with data, not vibes.** Difficulty was set by scripted bots that
 play the game with real mouse clicks at four skill levels (reaction delay +
@@ -46,6 +56,14 @@ came directly out of the data:
 2. **Precision differentiates on accuracy, not hit rate.** A decent player
    hits 94% of Precision targets — so the mode scores center accuracy
    (up to +100 per hit) instead of pretending to be hard to hit.
+3. **Track must forgive, or nobody finishes a capture.** The first Track
+   bot run showed even a perfect bot stalling: the ring drained twice as
+   fast as it filled and the mover snapped to new headings. The fix was
+   threefold — slower mover (70–120 px/s), smooth steering (velocity eases
+   between headings), a 10 px grace ring, and half-rate drain — plus a bot
+   fix (a two-read follow loop lagged ~250 ms per step; a single-read loop
+   follows like a human). After that the skill curve went monotonic
+   (perfect > fast > average > casual) with a first-timer still scoring.
 
 ## JetBrains tools used (honest status, 23 Nov 2026)
 
@@ -64,6 +82,10 @@ inspection report is the real output of `inspect.sh`.
 ## What is still to do before submission
 
 - Demo video (≤ 3 min, YouTube) — record a real play session + booth view.
+  NOTE: a v1 video was recorded 23 Nov 2026 03:35 from the pre-upgrade
+  build (3 modes, 90 s rounds). It MUST be re-recorded after the Track /
+  60 s-booth upgrade lands — the submitted video has to show the game
+  judges will actually play.
 - Submit on Devpost (Category 3) with this repo, the GitHub Pages link,
   the video, this write-up, and the tooling explanation above.
 - Optional: run Junie `/review` on the codebase once the AI codes arrive,

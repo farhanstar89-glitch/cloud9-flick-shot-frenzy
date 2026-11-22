@@ -2,9 +2,11 @@
  * Cloud9 Flick Shot Frenzy — Category 3 (Event Mini Game)
  * Cloud9 x JetBrains: Sky's The Limit Hackathon 2026
  *
- * A mouse-only flick-shot arcade game. One input, one verb: click targets.
- * Three modes share one engine. 90-second rounds. Local leaderboard.
- * No external assets, no network calls, no build step — open index.html and play.
+ * A mouse-only flick-shot arcade game. One input, one verb: click targets —
+ * plus Track mode, where you hold your cursor on a mover until the ring fills.
+ * Four modes share one engine. 60-second booth rounds (90s classic option).
+ * Local Top 10 leaderboard. No external assets, no network calls, no build
+ * step — open index.html and play.
  * All art is drawn with canvas vector shapes (original work, no Riot assets).
  * ========================================================================== */
 (function () {
@@ -16,10 +18,12 @@
 
   var LOGICAL_W = 960;
   var LOGICAL_H = 600;
-  var ROUND_MS = 90000;
+  var ROUND_MS = 90000; // classic round length
+  var BOOTH_MS = 60000; // booth default — the field's near-standard for throughput
   var COUNTDOWN_MS = 2400; // 3-2-1-GO
-  var SCORE_IDLE_RESET_MS = 25000; // booth: score screen -> menu
+  var SCORE_IDLE_RESET_MS = 15000; // booth: score screen -> attract screen
   var MENU_ATTRACT_MS = 30000; // booth: menu -> attract overlay
+  var TRACK_CAPTURE_MS = 900; // hold-to-track time to capture one mover
 
   // Cloud9 palette (brand blue / white / dark navy). All original.
   var COLORS = {
@@ -78,6 +82,21 @@
       decoyChance: 0.15,
       baseScore: 100, centerBonusMax: 0,
       par: 60000
+    },
+    track: {
+      label: 'Track',
+      tagline: 'One mover, no mercy. Hold your cursor on it till the ring fills.',
+      spawnMs: 600, spawnMsEnd: 500,
+      lifetimeMs: 120000, lifetimeMsEnd: 120000, // never expires mid-round
+      radiusMin: 40, radiusMax: 40,
+      driftMin: 70, driftMax: 120, // steering speed px/s — the skill is following
+      shrinkTo: 1,
+      maxTargets: 1,
+      decoyChance: 0,
+      baseScore: 150, centerBonusMax: 0,
+      captureMs: 900, // hold time to capture one mover
+      track: true,
+      par: 30000 // S threshold at 90s (perfect bot 50,654 / fast 42,404 / average 28,110); scaled by round length in rankFor
     }
   };
 
@@ -92,7 +111,7 @@
   /* ------------------------------------------------------------------ */
 
   var canvas, ctx, hud, screens;
-  var settings = { muted: false, lastMode: 'precision' };
+  var settings = { muted: false, lastMode: 'precision', durationMs: BOOTH_MS };
   var state = 'menu'; // menu | countdown | playing | paused | score
   var mode = 'precision';
   var targets = [];
@@ -103,13 +122,17 @@
   var spawned = 0;
   var reactionSum = 0, reactionCount = 0;
   var roundStartAt = 0, roundEndAt = 0, countdownStartAt = 0;
-  var roundDurationMs = ROUND_MS, goldenAt = 0, goldenHit = 0;
+  var roundDurationMs = BOOTH_MS, goldenAt = 0, goldenHit = 0;
   var lastSpawnAt = 0, frenzyUntil = 0, goldenSpawned = 0;
   var rafId = 0, lastFrameAt = 0;
   var lastActivityAt = Date.now();
   var attractOn = false;
   var roundResult = null;
   var audioCtx = null;
+  // Track mode: hold-to-track state
+  var tracking = null; // { id } while the mouse button is held on the mover
+  var mousePos = { x: LOGICAL_W / 2, y: LOGICAL_H / 2 };
+  var trackTimeMs = 0; // total ms the cursor actually stayed on the mover
 
   /* ------------------------------------------------------------------ */
   /* Helpers                                                             */
@@ -128,7 +151,7 @@
   function frenzyActive(now) { return now < frenzyUntil; }
 
   function progress01(now) {
-    return clamp((now - roundStartAt) / ROUND_MS, 0, 1);
+    return clamp((now - roundStartAt) / roundDurationMs, 0, 1);
   }
 
   function modeConfig() { return MODES[mode]; }
@@ -214,7 +237,7 @@
     var speed = rand(cfg.driftMin, cfg.driftMax);
     var life = (cfg.lifetimeMs + (cfg.lifetimeMsEnd - cfg.lifetimeMs) * p);
     if (frenzyActive(now)) life *= 0.9;
-    targets.push({
+    var t = {
       id: Math.random().toString(36).slice(2, 8),
       x: x, y: y,
       vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
@@ -223,7 +246,19 @@
       golden: isGolden, decoy: isDecoy,
       shrinkTo: cfg.shrinkTo,
       pulse: rand(0, Math.PI * 2)
-    });
+    };
+    if (cfg.track) {
+      // Track mode: one mover that steers, never expires, and is captured
+      // by holding the cursor on it — not by clicking it.
+      t.track = true;
+      t.captureMs = cfg.captureMs || TRACK_CAPTURE_MS;
+      t.trackProgress = 0;
+      t.steerAt = now + rand(1000, 1800);
+      // smooth steering: velocity eases toward the target heading instead
+      // of snapping, so the mover's path stays followable by eye.
+      t.tvx = t.vx; t.tvy = t.vy;
+    }
+    targets.push(t);
     if (isGolden) goldenSpawned++;
     spawned++;
   }
@@ -234,14 +269,50 @@
       var t = targets[i];
       var age = now - t.bornAt;
       var lifeFrac = age / t.lifeMs;
-      if (lifeFrac >= 1) { targets.splice(i, 1); continue; } // expired = no penalty
+      if (lifeFrac >= 1) { targets.splice(i, 1); if (tracking && tracking.id === t.id) tracking = null; continue; } // expired = no penalty
+      if (t.track) {
+        // steering: pick a new heading every ~1-1.8s; velocity eases toward
+        // it over ~300ms so turns are smooth and followable, not snaps.
+        if (now >= t.steerAt) {
+          var a = rand(0, Math.PI * 2);
+          var sp = rand(cfg.driftMin, cfg.driftMax);
+          t.tvx = Math.cos(a) * sp; t.tvy = Math.sin(a) * sp;
+          t.steerAt = now + rand(1000, 1800);
+        }
+        var k = Math.min(1, dt / 300);
+        t.vx += (t.tvx - t.vx) * k;
+        t.vy += (t.tvy - t.vy) * k;
+        // hold-to-track progress: fills while the button is held AND the
+        // cursor is on the mover (with a small grace ring — tracking aim
+        // trainers forgive a few pixels). Drains at half the fill rate,
+        // so a brief slip costs time but does not wipe the attempt.
+        if (tracking && tracking.id === t.id) {
+          var d = Math.hypot(mousePos.x - t.x, mousePos.y - t.y);
+          if (d <= t.r + 10) {
+            t.trackProgress += dt / t.captureMs;
+            trackTimeMs += dt;
+            if (t.trackProgress >= 1) {
+              captureTrack(t, now);
+              targets.splice(i, 1);
+              tracking = null;
+              updateHud(now);
+              continue;
+            }
+          } else {
+            t.trackProgress = Math.max(0, t.trackProgress - dt / (t.captureMs * 2));
+          }
+        } else {
+          t.trackProgress = Math.max(0, t.trackProgress - dt / (t.captureMs * 2));
+        }
+      }
       t.x += t.vx * dt / 1000;
       t.y += t.vy * dt / 1000;
-      // bounce off arena walls
-      if (t.x < t.r0 + 4) { t.x = t.r0 + 4; t.vx = Math.abs(t.vx); }
-      if (t.x > LOGICAL_W - t.r0 - 4) { t.x = LOGICAL_W - t.r0 - 4; t.vx = -Math.abs(t.vx); }
-      if (t.y < t.r0 + 44) { t.y = t.r0 + 44; t.vy = Math.abs(t.vy); }
-      if (t.y > LOGICAL_H - t.r0 - 4) { t.y = LOGICAL_H - t.r0 - 4; t.vy = -Math.abs(t.vy); }
+      // bounce off arena walls (track targets flip their target heading too,
+      // or the steering lerp would pull them straight back into the wall)
+      if (t.x < t.r0 + 4) { t.x = t.r0 + 4; t.vx = Math.abs(t.vx); if (t.track) t.tvx = Math.abs(t.tvx); }
+      if (t.x > LOGICAL_W - t.r0 - 4) { t.x = LOGICAL_W - t.r0 - 4; t.vx = -Math.abs(t.vx); if (t.track) t.tvx = -Math.abs(t.tvx); }
+      if (t.y < t.r0 + 44) { t.y = t.r0 + 44; t.vy = Math.abs(t.vy); if (t.track) t.tvy = Math.abs(t.tvy); }
+      if (t.y > LOGICAL_H - t.r0 - 4) { t.y = LOGICAL_H - t.r0 - 4; t.vy = -Math.abs(t.vy); if (t.track) t.tvy = -Math.abs(t.tvy); }
       // shrink over lifetime
       var shrink = 1 - (1 - cfg.shrinkTo) * lifeFrac;
       t.r = t.r0 * shrink;
@@ -295,6 +366,29 @@
     }
   }
 
+  function captureTrack(t, now) {
+    // Track mode: holding the cursor on the mover for captureMs captures it.
+    // Scoring mirrors a hit: base points x combo multiplier (x2 in FRENZY).
+    var base = t.golden ? GOLDEN_SCORE : modeConfig().baseScore;
+    var mult = comboMultiplier() * (frenzyActive(now) ? 2 : 1);
+    var gained = Math.round(base * mult);
+    score += gained;
+    hits++;
+    combo++;
+    if (combo > bestCombo) bestCombo = combo;
+    if (t.golden) {
+      goldenHit++;
+      frenzyUntil = now + FRENZY_MS;
+      SFX.golden();
+      burst(t.x, t.y, COLORS.gold, 26);
+      floaters.push({ x: t.x, y: t.y - 10, text: 'GOLDEN +' + gained + ' — FRENZY!', color: COLORS.gold, bornAt: now, life: 1400 });
+    } else {
+      SFX.hit();
+      burst(t.x, t.y, COLORS.c9light, 12);
+      floaters.push({ x: t.x, y: t.y - 10, text: '+' + gained, color: '#ffffff', bornAt: now, life: 900 });
+    }
+  }
+
   function registerMiss(now) {
     combo = 0;
     SFX.miss();
@@ -338,15 +432,41 @@
     if (state !== 'playing') return;
     var now = performance.now();
     var p = canvasPos(ev);
+    mousePos = p;
+    if (mode === 'track') {
+      // Track mode: pressing on the mover starts a hold. The capture itself
+      // happens in updateTargets once the ring fills — this press is the
+      // "attempt" (a shot) and its reaction time is measured here.
+      for (var i = targets.length - 1; i >= 0; i--) {
+        var t = targets[i];
+        var d = Math.hypot(p.x - t.x, p.y - t.y);
+        if (d <= t.r) {
+          shots++;
+          if (t.decoy) {
+            targets.splice(i, 1);
+            registerDecoy(t, now);
+          } else {
+            if (!tracking) { reactionSum += now - t.bornAt; reactionCount++; }
+            tracking = { id: t.id };
+          }
+          updateHud(now);
+          return;
+        }
+      }
+      shots++;
+      registerMiss(now);
+      updateHud(now);
+      return;
+    }
     shots++;
     // topmost target first (last spawned = on top)
-    for (var i = targets.length - 1; i >= 0; i--) {
-      var t = targets[i];
-      var d = Math.hypot(p.x - t.x, p.y - t.y);
-      if (d <= t.r) {
-        targets.splice(i, 1);
-        if (t.decoy) registerDecoy(t, now);
-        else registerHit(t, now, p.x, p.y);
+    for (var j = targets.length - 1; j >= 0; j--) {
+      var t2 = targets[j];
+      var d2 = Math.hypot(p.x - t2.x, p.y - t2.y);
+      if (d2 <= t2.r) {
+        targets.splice(j, 1);
+        if (t2.decoy) registerDecoy(t2, now);
+        else registerHit(t2, now, p.x, p.y);
         updateHud(now);
         return;
       }
@@ -354,6 +474,8 @@
     registerMiss(now);
     updateHud(now);
   }
+
+  function endTracking() { tracking = null; }
 
   /* ------------------------------------------------------------------ */
   /* Rendering                                                           */
@@ -446,12 +568,28 @@
       ctx.lineWidth = 2.5;
       drawStar(0, 0, 5, t.r * 1.18, t.r * 0.55);
     }
-    // remaining-life ring
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, t.r + 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - lifeFrac));
-    ctx.stroke();
+    if (t.track) {
+      // hold-to-track progress ring: fills gold while the cursor stays on it
+      var prog = clamp(t.trackProgress || 0, 0, 1);
+      ctx.strokeStyle = prog > 0 ? COLORS.gold : 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(0, 0, t.r + 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog);
+      ctx.stroke();
+      if (prog === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = 'bold 13px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('HOLD', 0, t.r + 26);
+      }
+    } else {
+      // remaining-life ring
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, t.r + 7, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - lifeFrac));
+      ctx.stroke();
+    }
     ctx.restore();
   }
 
@@ -559,8 +697,8 @@
   }
 
   function renderMenuLeaderboard() {
-    var list = window.C9Leaderboard.topScores('all', 5);
-    var el = $('menu-top5');
+    var list = window.C9Leaderboard.topScores('all', 10);
+    var el = $('menu-top10');
     if (!el) return;
     if (!list.length) {
       el.innerHTML = '<li class="empty">No scores yet — be the first legend.</li>';
@@ -579,9 +717,12 @@
     });
   }
 
-  function rankFor(acc, sc) {
-    var par = modeConfig().par;
-    if (acc >= 85 && sc >= par) return 'S';
+  function rankFor(acc, sc, avgReact) {
+    // par is quoted for a 90s round; scale it so a grade measures skill,
+    // not round length (a 60s booth round has 2/3 of the scoring time).
+    var par = modeConfig().par * (roundDurationMs / 90000);
+    // S also demands fast reactions — a slow-but-accurate player tops out at A.
+    if (acc >= 85 && sc >= par && (avgReact === 0 || avgReact <= 600)) return 'S';
     if (acc >= 70 && sc >= par * 0.6) return 'A';
     if (acc >= 50) return 'B';
     return 'C';
@@ -589,24 +730,30 @@
 
   function endRound(now) {
     state = 'score';
+    tracking = null;
     SFX.over();
     var acc = shots > 0 ? Math.round(hits / shots * 100) : 0;
     var avgReact = reactionCount > 0 ? Math.round(reactionSum / reactionCount) : 0;
     roundResult = {
       mode: mode, score: score, hits: hits, shots: shots, acc: acc,
-      bestCombo: bestCombo, avgReact: avgReact,
-      rank: rankFor(acc, score), golden: goldenSpawned
+      bestCombo: bestCombo, avgReact: avgReact, trackTimeMs: trackTimeMs,
+      rank: rankFor(acc, score, avgReact), golden: goldenSpawned,
+      durationMs: roundDurationMs
     };
     $('final-score').textContent = score.toLocaleString('en-US');
     $('final-rank').textContent = roundResult.rank;
     $('final-rank').className = 'rank-badge rank-' + roundResult.rank;
-    $('final-stats').innerHTML =
+    var statsHtml =
       '<div><b>' + hits + '/' + shots + '</b><span>hits / shots</span></div>' +
       '<div><b>' + acc + '%</b><span>accuracy</span></div>' +
       '<div><b>' + bestCombo + '</b><span>best combo</span></div>' +
-      '<div><b>' + (avgReact ? avgReact + 'ms' : '—') + '</b><span>avg reaction</span></div>' +
+      '<div><b>' + (avgReact ? avgReact + ' ms' : '—') + '</b><span>avg reaction</span></div>' +
       '<div><b>' + goldenHit + '</b><span>golden hit</span></div>';
-    $('score-mode-label').textContent = MODES[mode].label + ' — 90s round';
+    if (mode === 'track') {
+      statsHtml += '<div><b>' + (trackTimeMs / 1000).toFixed(1) + ' s</b><span>on-target time</span></div>';
+    }
+    $('final-stats').innerHTML = statsHtml;
+    $('score-mode-label').textContent = MODES[mode].label + ' — ' + Math.round(roundDurationMs / 1000) + 's round';
     // initials entry (arcade style)
     var input = $('initials');
     input.value = '';
@@ -638,10 +785,14 @@
     mode = selectedMode || mode;
     settings.lastMode = mode;
     window.C9Leaderboard.saveSettings(settings);
-    var duration = (opts && opts.durationMs) || ROUND_MS;
+    // Booth default is 60s; the menu toggle (or an explicit opts override)
+    // can switch to the 90s classic round.
+    var duration = (opts && opts.durationMs) || settings.durationMs || BOOTH_MS;
     score = 0; hits = 0; shots = 0; combo = 0; bestCombo = 0; spawned = 0;
     roundDurationMs = duration; goldenHit = 0;
     reactionSum = 0; reactionCount = 0; goldenSpawned = 0;
+    tracking = null; trackTimeMs = 0;
+    mousePos = { x: LOGICAL_W / 2, y: LOGICAL_H / 2 };
     targets = []; particles = []; floaters = [];
     frenzyUntil = 0; lastSpawnAt = 0;
     state = 'countdown';
@@ -662,14 +813,26 @@
     SFX.go();
   }
 
-  function quitToMenu() {
+  function quitToMenu(showAttract) {
     state = 'menu';
     targets = []; particles = []; floaters = [];
-    attractOn = false;
-    $('attract').classList.add('hidden');
+    tracking = null;
+    // Booth flow: an idle reset lands straight on the attract screen, so
+    // the next player in line sees "TAP TO PLAY" immediately.
+    attractOn = !!showAttract;
+    $('attract').classList.toggle('hidden', !attractOn);
     showScreen('menu');
     renderMenuLeaderboard();
-    pokeActivity();
+    lastActivityAt = Date.now();
+  }
+
+  function staffReset() {
+    // Booth operator: wipe the local leaderboard and reset to the menu.
+    // Button + "R" key. Guarded by confirm() so a stray tap can't nuke it.
+    if (!window.confirm('Staff reset: clear the local leaderboard and return to the menu?')) return;
+    window.C9Leaderboard.clearScores();
+    renderMenuLeaderboard();
+    quitToMenu();
   }
 
   function togglePause() {
@@ -729,13 +892,25 @@
       targets.forEach(function (t) { drawTarget(t, now); });
     } else if (state === 'score') {
       drawParticles(now);
-      if (Date.now() - lastActivityAt > SCORE_IDLE_RESET_MS) quitToMenu(); // booth auto-reset
+      if (Date.now() - lastActivityAt > SCORE_IDLE_RESET_MS) quitToMenu(true); // booth auto-reset -> attract
     }
   }
 
   /* ------------------------------------------------------------------ */
   /* Boot                                                                */
   /* ------------------------------------------------------------------ */
+
+  function syncDurationUI() {
+    var d = settings.durationMs || BOOTH_MS;
+    document.querySelectorAll('.duration-btn').forEach(function (b) {
+      b.classList.toggle('active', Number(b.dataset.duration) === d);
+    });
+    document.querySelectorAll('.mode-play').forEach(function (el) {
+      el.textContent = 'PLAY — ' + Math.round(d / 1000) + 's';
+    });
+    var at = $('attract-sub');
+    if (at) at.textContent = Math.round(d / 1000) + ' seconds · mouse only · beat the top score';
+  }
 
   function buildModeCards() {
     var wrap = $('mode-cards');
@@ -746,19 +921,20 @@
       card.dataset.mode = key;
       card.innerHTML = '<span class="mode-name">' + m.label + '</span>' +
         '<span class="mode-tagline">' + m.tagline + '</span>' +
-        '<span class="mode-play">PLAY — 90s</span>';
+        '<span class="mode-play">PLAY</span>';
       card.addEventListener('click', function () {
         ensureAudio();
         startCountdown(key);
       });
       wrap.appendChild(card);
     });
+    syncDurationUI();
   }
 
   function init() {
     canvas = $('game-canvas');
     ctx = canvas.getContext('2d');
-    settings = Object.assign({ muted: false, lastMode: 'precision' }, window.C9Leaderboard.loadSettings());
+    settings = Object.assign({ muted: false, lastMode: 'precision', durationMs: BOOTH_MS }, window.C9Leaderboard.loadSettings());
     mode = MODES[settings.lastMode] ? settings.lastMode : 'precision';
 
     // crisp rendering on hidpi
@@ -783,10 +959,16 @@
 
     // controls
     canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', function (ev) { mousePos = canvasPos(ev); });
+    canvas.addEventListener('pointerup', endTracking);
+    canvas.addEventListener('pointercancel', endTracking);
+    canvas.addEventListener('pointerleave', endTracking);
     canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     document.addEventListener('pointerdown', pokeActivity, true);
     document.addEventListener('keydown', function (e) {
       pokeActivity();
+      var typing = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA');
+      if ((e.key === 'r' || e.key === 'R') && !typing) { staffReset(); return; }
       if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
         if (state === 'playing' || state === 'paused') togglePause();
         else if (state === 'score') quitToMenu();
@@ -803,6 +985,15 @@
     $('btn-again').addEventListener('click', function () { startCountdown(mode); });
     $('btn-menu').addEventListener('click', quitToMenu);
     $('btn-booth').addEventListener('click', function () { window.open('booth.html', '_blank'); });
+    $('btn-staff-reset').addEventListener('click', staffReset);
+    document.querySelectorAll('.duration-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        settings.durationMs = Number(btn.dataset.duration);
+        window.C9Leaderboard.saveSettings(settings);
+        syncDurationUI();
+        pokeActivity();
+      });
+    });
     $('btn-save-score').addEventListener('click', saveScoreAndShow);
     $('initials').addEventListener('keydown', function (e) {
       if (e.key === 'Enter') saveScoreAndShow();
@@ -825,8 +1016,12 @@
         state: state, mode: mode, score: score, hits: hits, shots: shots,
         combo: combo, bestCombo: bestCombo, spawned: spawned,
         timeLeftMs: Math.max(0, roundEndAt - now),
+        durationMs: roundDurationMs,
+        avgReact: reactionCount ? Math.round(reactionSum / reactionCount) : 0,
+        trackTimeMs: trackTimeMs,
+        tracking: tracking ? { id: tracking.id } : null,
         targets: targets.map(function (t) {
-          return { id: t.id, x: t.x, y: t.y, r: t.r, golden: t.golden, decoy: t.decoy, bornAt: t.bornAt };
+          return { id: t.id, x: t.x, y: t.y, r: t.r, golden: t.golden, decoy: t.decoy, bornAt: t.bornAt, track: !!t.track, trackProgress: t.trackProgress || 0 };
         }),
         frenzy: frenzyActive(now)
       };

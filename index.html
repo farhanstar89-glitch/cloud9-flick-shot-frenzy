@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cloud9 Flick Shot Frenzy — Event Mini Game</title>
-<meta name="description" content="Cloud9 Flick Shot Frenzy: a mouse-only flick-shot arcade game for Cloud9 event booths. 90-second rounds, three modes, local leaderboard. Built with JetBrains WebStorm.">
+<title>Frenzy — Cloud9 Flick-Shot Arcade | Event Mini Game</title>
+<meta name="description" content="Frenzy: the Cloud9 booth flick-shot arcade. Four modes — Precision, Reflex, Chaos and Track — 60-second booth rounds, a local Top 10 leaderboard and a second-monitor booth display. Built with JetBrains WebStorm.">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,11 +12,12 @@
   <header id="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">9</span>
-      <span class="brand-name">CLOUD9 <b>FLICK SHOT FRENZY</b></span>
+      <span class="brand-name">CLOUD9 <b>FRENZY</b> <span class="brand-sub">FLICK-SHOT ARCADE</span></span>
     </div>
     <div class="top-actions">
       <button id="btn-mute" class="chip-btn" type="button">SOUND: ON</button>
       <button id="btn-booth" class="chip-btn" type="button">BOOTH DISPLAY ↗</button>
+      <button id="btn-staff-reset" class="chip-btn" type="button" title="Staff: clear the local leaderboard (R)">STAFF RESET</button>
     </div>
   </header>
 
@@ -41,24 +42,29 @@
 
     <!-- MENU -->
     <div id="screen-menu" class="screen">
-      <h1>FLICK SHOT<br><span>FRENZY</span></h1>
-      <p class="tagline">The Cloud9 booth aim-trainer. Click the targets. Skip the dark ones.<br>90 seconds. One mouse. No mercy.</p>
+      <h1>FRENZY<br><span>FLICK-SHOT ARCADE</span></h1>
+      <p class="tagline">The Cloud9 booth aim arcade. Four skills, one leaderboard: flick the targets, track the mover, skip the dark ones.<br>60-second booth rounds. One mouse. No mercy.</p>
+      <div class="duration-row" role="group" aria-label="Round length">
+        <span class="duration-label">ROUND</span>
+        <button class="chip-btn duration-btn active" data-duration="60000" type="button">60s BOOTH</button>
+        <button class="chip-btn duration-btn" data-duration="90000" type="button">90s CLASSIC</button>
+      </div>
       <div id="mode-cards" class="mode-cards"></div>
       <div class="menu-bottom">
         <div class="howto">
           <b>HOW TO PLAY</b>
-          <p>Click a target to score. Consecutive hits build your combo multiplier (up to ×5).
-          Golden targets are worth 500 and trigger an 8-second FRENZY (double points).
-          Exactly one golden target appears every round, at a random moment —
-          every player gets the same jackpot chance.
-          In Chaos mode, never click the dark targets — they cost 50 points and break your combo.</p>
+          <p>Click a target to score. Combos build your multiplier (up to ×5).
+          Golden targets are worth 500 and trigger an 8-second FRENZY.
+          Exactly one golden target appears every round.
+          Chaos: never click the dark targets (−50). Track: press and HOLD
+          on the roaming target until its ring fills.</p>
         </div>
         <div class="top5">
-          <b>LOCAL TOP 5</b>
-          <ol id="menu-top5"></ol>
+          <b>LOCAL TOP 10</b>
+          <ol id="menu-top10"></ol>
         </div>
       </div>
-      <p class="foot">Original game — no Riot assets, names or music. Runs fully offline. Built with JetBrains WebStorm.</p>
+      <p class="foot">Four modes · live Top 10 booth leaderboard · Original game — no Riot assets, names or music. Runs fully offline. Built with JetBrains WebStorm.</p>
     </div>
 
     <!-- PAUSED -->
@@ -93,20 +99,20 @@
         <button id="btn-again" class="big-btn" type="button">PLAY AGAIN</button>
         <button id="btn-menu" class="big-btn ghost" type="button">CHANGE MODE</button>
       </div>
-      <p class="auto-note">Auto-returns to the menu in 25s — ready for the next player.</p>
+      <p class="auto-note">Auto-returns to the attract screen in 15s — ready for the next player.</p>
     </div>
 
     <!-- ATTRACT -->
     <div id="attract" class="attract hidden">
-      <p>☁️ CLOUD9 FLICK SHOT FRENZY ☁️</p>
+      <p>☁️ CLOUD9 FRENZY ☁️</p>
       <p class="attract-big">TAP TO PLAY</p>
-      <p>90 seconds · mouse only · beat the top score</p>
+      <p id="attract-sub">60 seconds · mouse only · beat the top score</p>
     </div>
   </main>
 
   <footer id="bottombar">
     <span>Cloud9 x JetBrains: Sky's The Limit Hackathon 2026 — Category 3: Event Mini Game</span>
-    <span>ESC pauses · Enter starts</span>
+    <span>ESC pauses · Enter starts · R staff reset</span>
   </footer>
 </div>
 

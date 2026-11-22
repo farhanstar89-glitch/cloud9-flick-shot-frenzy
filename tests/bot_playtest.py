@@ -1,6 +1,6 @@
 """Scripted bot playtests for Cloud9 Flick Shot Frenzy.
 
-Simulates players of four skill levels across all three modes and measures
+Simulates players of four skill levels across all four modes and measures
 score / accuracy / hit-rate, so spawn cadence, target size, lifetime and
 difficulty curves can be tuned with data instead of vibes.
 
@@ -36,11 +36,103 @@ PROFILES = {
     "average": {"delay": 0.32, "noise": 12.0, "skip": 0.10, "speed": 2.0},
     "casual": {"delay": 0.50, "noise": 18.0, "skip": 0.25, "speed": 1.2},
 }
-MODES = ["precision", "reflex", "chaos"]
+MODES = ["precision", "reflex", "chaos", "track"]
+
+
+async def play_track(page, profile, duration_ms):
+    """Play Track mode: press on the mover, then hold and follow it until
+    the ring fills (capture). The bot re-reads the mover's position once per
+    step and follows it — one evaluate per step, so follow lag stays low
+    (a two-read loop lagged ~250ms/step and stalled holds). An open-loop
+    bot that holds still loses the mover in under a second, like a human."""
+    await page.goto(BASE + "/index.html")
+    await page.evaluate("localStorage.clear()")
+    await page.evaluate(
+        "([m, d]) => window.FLICK.start(m, {durationMs: d})", ["track", duration_ms]
+    )
+    await page.wait_for_timeout(2600)  # countdown
+    box = await page.evaluate("window.FLICK.canvasBox()")
+    sx = box["width"] / 960.0
+    sy = box["height"] / 600.0
+    rng = random.Random(hash(("track", profile["delay"])) & 0xFFFFFFFF)
+    deadline = time.time() + duration_ms / 1000.0 + 8
+    last_x, last_y = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+    holding = False
+    hold_id = None
+    hold_hits = 0
+    while time.time() < deadline:
+        st = await page.evaluate("window.FLICK.getState()")
+        if st["state"] == "score":
+            break
+        if st["state"] != "playing":
+            await page.wait_for_timeout(50)
+            continue
+        tgts = [t for t in st["targets"] if t.get("track")]
+        if holding:
+            # capture check from this fresh read, then keep following
+            if st["hits"] > hold_hits or not any(x["id"] == hold_id for x in st["targets"]):
+                await page.mouse.up()  # captured — release and find the next mover
+                holding = False
+                hold_id = None
+                await page.wait_for_timeout(60)
+                continue
+            if not tgts:
+                await page.mouse.up()
+                holding = False
+                hold_id = None
+                continue
+            t = tgts[0]
+            nx = t["x"] + rng.gauss(0, profile["noise"])
+            ny = t["y"] + rng.gauss(0, profile["noise"])
+            cx, cy = box["x"] + nx * sx, box["y"] + ny * sy
+            await page.mouse.move(cx, cy)
+            last_x, last_y = cx, cy
+            await page.wait_for_timeout(30)
+            continue
+        if not tgts:
+            await page.wait_for_timeout(80)
+            continue
+        t = tgts[0]
+        tx, ty = box["x"] + t["x"] * sx, box["y"] + t["y"] * sy
+        travel_ms = 0
+        if profile["speed"]:
+            travel_ms = math.hypot(tx - last_x, ty - last_y) / profile["speed"]
+        await page.wait_for_timeout(int(profile["delay"] * 1000 + travel_ms * 0.5))
+        st2 = await page.evaluate("window.FLICK.getState()")
+        live = [x for x in st2["targets"] if x["id"] == t["id"]]
+        if not live:
+            continue
+        t = live[0]
+        nx = t["x"] + rng.gauss(0, profile["noise"])
+        ny = t["y"] + rng.gauss(0, profile["noise"])
+        cx, cy = box["x"] + nx * sx, box["y"] + ny * sy
+        await page.mouse.move(cx, cy)
+        await page.mouse.down()
+        holding = True
+        hold_id = t["id"]
+        hold_hits = st2["hits"]
+        last_x, last_y = cx, cy
+    if holding:
+        await page.mouse.up()
+    st = await page.evaluate("window.FLICK.getState()")
+    return {
+        "mode": "track",
+        "profile": next(k for k, v in PROFILES.items() if v is profile),
+        "score": st["score"],
+        "hits": st["hits"],
+        "shots": st["shots"],
+        "spawned": st["spawned"],
+        "bestCombo": st["bestCombo"],
+        "acc": round(100.0 * st["hits"] / st["shots"], 1) if st["shots"] else 0,
+        "hitRate": round(100.0 * st["hits"] / st["spawned"], 1) if st["spawned"] else 0,
+        "tracked": round(st.get("trackTimeMs", 0) / 1000.0, 1),
+    }
 
 
 async def play_one(page, mode, profile, duration_ms):
     """Play one round as the given profile; return the final state + stats."""
+    if mode == "track":
+        return await play_track(page, profile, duration_ms)
     await page.goto(BASE + "/index.html")
     await page.evaluate("localStorage.clear()")
     await page.evaluate(
@@ -103,10 +195,11 @@ async def play_one(page, mode, profile, duration_ms):
         "bestCombo": st["bestCombo"],
         "acc": round(100.0 * st["hits"] / st["shots"], 1) if st["shots"] else 0,
         "hitRate": round(100.0 * st["hits"] / st["spawned"], 1) if st["spawned"] else 0,
+        "tracked": 0.0,
     }
 
 
-async def main_async(duration_ms, reps):
+async def main_async(duration_ms, reps, modes):
     from playwright.async_api import async_playwright
 
     all_runs = []
@@ -114,7 +207,7 @@ async def main_async(duration_ms, reps):
         browser = await p.chromium.launch()
         for _ in range(reps):
             tasks = []
-            for mode in MODES:
+            for mode in modes:
                 for name, prof in PROFILES.items():
                     page = await browser.new_page(viewport={"width": 1280, "height": 800})
                     tasks.append(play_one(page, mode, prof, duration_ms))
@@ -138,6 +231,7 @@ async def main_async(duration_ms, reps):
             "bestCombo": max(r["bestCombo"] for r in rows),
             "acc": round(sum(r["acc"] for r in rows) / n, 1),
             "hitRate": round(sum(r["hitRate"] for r in rows) / n, 1),
+            "tracked": round(sum(r.get("tracked", 0) for r in rows) / n, 1),
         })
     return results
 
@@ -146,10 +240,15 @@ def verdict(results):
     lines = []
     for mode in MODES:
         rows = [r for r in results if r["mode"] == mode]
+        if not rows:
+            continue
         avg = next(r for r in rows if r["profile"] == "average")
+        extra = ""
+        if mode == "track":
+            extra = f" on-target {avg.get('tracked', 0)}s;"
         lines.append(
             f"- **{mode}**: average player scores {avg['score']:,} "
-            f"(acc {avg['acc']}%, hit-rate {avg['hitRate']}%, best combo {avg['bestCombo']}); "
+            f"(acc {avg['acc']}%, hit-rate {avg['hitRate']}%, best combo {avg['bestCombo']});{extra} "
             f"perfect bot {next(r for r in rows if r['profile'] == 'perfect')['score']:,}, "
             f"casual {next(r for r in rows if r['profile'] == 'casual')['score']:,}."
         )
@@ -160,6 +259,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--full", action="store_true", help="real 90s rounds")
     ap.add_argument("--reps", type=int, default=1, help="repetitions per combo, averaged")
+    ap.add_argument("--modes", nargs="+", default=MODES, choices=MODES,
+                    help="modes to playtest (default: all)")
     ap.add_argument("--out", default="docs/PLAYTEST-REPORT.md")
     args = ap.parse_args()
 
@@ -171,15 +272,15 @@ def main():
     )
     time.sleep(1.0)
     try:
-        results = asyncio.run(main_async(duration_ms, args.reps))
+        results = asyncio.run(main_async(duration_ms, args.reps, args.modes))
     finally:
         server.terminate()
 
     results.sort(key=lambda r: (MODES.index(r["mode"]), list(PROFILES).index(r["profile"])))
-    print(f"\n{'mode':<10} {'profile':<8} {'score':>8} {'hits':>5} {'shots':>6} {'acc':>6} {'hitRate':>8} {'combo':>6}")
+    print(f"\n{'mode':<10} {'profile':<8} {'score':>8} {'hits':>5} {'shots':>6} {'acc':>6} {'hitRate':>8} {'combo':>6} {'tracked':>8}")
     for r in results:
         print(f"{r['mode']:<10} {r['profile']:<8} {r['score']:>8,} {r['hits']:>5} {r['shots']:>6} "
-              f"{r['acc']:>5.1f}% {r['hitRate']:>7.1f}% {r['bestCombo']:>6}")
+              f"{r['acc']:>5.1f}% {r['hitRate']:>7.1f}% {r['bestCombo']:>6} {r.get('tracked', 0):>7.1f}s")
 
     report = (
         "# Flick Shot Frenzy — Bot Playtest Report\n\n"
@@ -188,12 +289,12 @@ def main():
         "scripted Playwright bots, real mouse clicks, no cheats (bots read the same "
         "target positions a player sees and click with human reaction delays).\n\n"
         "## Results\n\n"
-        "| Mode | Profile | Score | Hits | Shots | Acc | Hit-rate | Best combo |\n"
-        "|---|---|---|---|---|---|---|---|\n"
+        "| Mode | Profile | Score | Hits | Shots | Acc | Hit-rate | Best combo | Tracked (s) |\n"
+        "|---|---|---|---|---|---|---|---|---|\n"
     )
     for r in results:
         report += (f"| {r['mode']} | {r['profile']} | {r['score']:,} | {r['hits']} | "
-                   f"{r['shots']} | {r['acc']}% | {r['hitRate']}% | {r['bestCombo']} |\n")
+                   f"{r['shots']} | {r['acc']}% | {r['hitRate']}% | {r['bestCombo']} | {r.get('tracked', 0)} |\n")
     report += "\n## Reading\n\n" + verdict(results) + "\n\n"
     report += (
         "Tuning targets: the **average** profile (320ms reaction, 12px aim noise) is "

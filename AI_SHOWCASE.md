@@ -1,4 +1,4 @@
-# AI-Powered Workflow Story — Cloud9 Flick Shot Frenzy
+# AI-Powered Workflow Story — Frenzy (Cloud9 Flick-Shot Arcade)
 
 *Bonus prize entry: Best AI-Powered Workflow Story — a short case study of
 how AI accelerated this build. Everything below is what actually happened;
@@ -22,8 +22,8 @@ game's feature list is a direct translation of that page — nothing in the
 game is there by accident.
 
 **2. Built the game in one pass, then tested it like a player.** The full
-game (menu → countdown → 90-second round → score screen, three modes, combo
-system, golden-target frenzy, synthesized sound, local leaderboard, booth
+game (menu → countdown → 60-second booth round → score screen, four modes, combo
+system, golden-target frenzy, synthesized sound, local Top 10 leaderboard, booth
 display view) was written as a static site with no build step — the agent
 chose that deliberately so judges can open the GitHub Pages link and play
 instantly, with zero install friction.
@@ -43,14 +43,26 @@ mouse-travel time). Three rounds of measurement, each followed by a retune:
   Reflex, 74% in Chaos; first-timer still scores in every mode except
   Reflex, which is the hard mode by design).
 
+- *Round 4 (rival-gap upgrade):* a fourth mode, **Track**, was added to
+  close the gap to the best Category 3 rivals — a genuinely different skill
+  (hold-to-track, not another click variant). The first bot run exposed two
+  real bugs: the ring drained twice as fast as it filled, so even a perfect
+  bot stalled; and the bot's own two-read follow loop lagged ~250 ms per
+  step. The agent retuned the game (slower mover, smooth steering that
+  eases between headings instead of snapping, a grace ring, half-rate
+  drain) and fixed the bot to a single-read follow loop — after which the
+  skill curve went cleanly monotonic across all four bot skill levels
+  (see docs/PLAYTEST-REPORT-FULL90.md for the numbers).
+
 Two design decisions came out of the data, not out of opinion: exactly one
 golden target per round (a random golden lottery swung identical runs by
 thousands of points), and Precision scoring center accuracy instead of
 pretending to be hard to hit.
 
 **4. Verified the loop end to end.** A smoke test clicks through the entire
-flow in a real browser — menu → play → score → save → play again → booth
-view — and fails on any console error. 14/14 checks pass.
+flow in a real browser — menu → play → score → save → play again → Track
+capture → Top 10 → staff reset → live booth view — and fails on any console
+error. 27/27 checks pass.
 
 **5. Shipped the repo.** Public GitHub repo, MIT license, GitHub Pages
 deployment, README with run instructions — all created and pushed by the
@@ -82,6 +94,6 @@ agent through the project's normal git credential flow.
 ## The one-line version
 
 An AI agent read the rules, built a complete booth game, taught itself to
-play it with bots at four skill levels, retuned it three times from the
+play it with bots at four skill levels, retuned it four times from the
 numbers, verified it in a real browser, and shipped it — in one night,
 with WebStorm as its IDE and an honest paper trail for every claim.
