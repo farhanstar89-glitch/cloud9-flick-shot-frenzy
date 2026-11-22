@@ -1,0 +1,260 @@
+Style (Proofreading)
+  Identifies and highlights issues with writing style in your text. To view and update your current writing style settings, go to
+  Settings | Editor | Natural Languages | Grammar and Style.
+  Inspection ID: GrazieStyle
+
+  ./METHODOLOGY.md:32           [STYLE_SUGGESTION] Long sentences (48 words here) are harder to read, according to the research; consider splitting
+  ./METHODOLOGY.md:38           [STYLE_SUGGESTION] Long sentences (49 words here) are harder to read, according to the research; consider splitting
+  ./README.md:41                [STYLE_SUGGESTION] British roots ending with '-our' usually have '-or' in American English
+  ./AI_SHOWCASE.md:29           [STYLE_SUGGESTION] Long sentences (52 words here) are harder to read, according to the research; consider splitting
+  ./AI_SHOWCASE.md:37           [STYLE_SUGGESTION] American English does not double '-l-' in suffixes
+  ./AI_SHOWCASE.md:87           [STYLE_SUGGESTION] Long sentences (54 words here) are harder to read, according to the research; consider splitting
+  ./.junie/guidelines.md:23     [STYLE_SUGGESTION] British roots ending with '-our' usually have '-or' in American English
+
+Redundant local variable (JavaScript and TypeScript | Data flow)
+  Reports an unnecessary local variable that does not make
+  a function more comprehensible:
+  a local variable that is immediately returned
+  a local variable that is immediately assigned to another variable and is not used anymore
+  a local variable that always has the same value as another local variable or parameter.
+  Use the checkbox below to have this inspection ignore variables that are immediately
+  returned or thrown.  Some coding styles suggest using such variables for clarity and
+  ease of debugging.
+  Inspection ID: UnnecessaryLocalVariableJS
+
+  ./game.js:480     [WARNING] <html>Local variable <code><span style="color:#458383;">k</span></code> is redundant</html>
+
+'var' is used instead of 'let' or 'const' (JavaScript and TypeScript | ES2015 migration aids)
+  Reports a var declaration that is used instead of let or const.
+  Both let and const are block-scoped and behave more strictly.
+  Suggests replacing all var declarations with let or const declarations, depending on the semantics of a particular  value.
+  The declarations may be moved to the top of the function or placed before the first usage of the variable to avoid Reference errors.
+  Select the 'Conservatively convert var with Fix all action' option to prevent any changes in these complex cases when using the 'Fix all' action.
+  Inspection ID: ES6ConvertVarToLetConst
+
+  ./leaderboard.js:8      [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:9      [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:10     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:14     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:16     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:35     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:36     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:53     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./leaderboard.js:66     [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:8            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:9            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:18           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:19           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:20           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:21           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:32           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./booth.js:33           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:17            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:18            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:19            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:20            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:21            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:22            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:25            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:42            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:84            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:85            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:86            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:87            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:88            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:94            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:95            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:96            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:97            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:98            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:99            [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:100           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:101           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:102           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:103           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:104           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:105           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:106           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:107           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:108           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:109           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:110           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:111           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:112           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:137           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:142           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:153           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:163           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:166           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:167           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:168           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:179           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:202           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:203           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:207           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:208           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:209           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:210           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:211           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:212           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:213           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:214           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:215           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:232           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:233           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:234           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:235           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:236           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:246           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:251           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:264           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:265           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:266           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:267           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:270           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:274           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:279           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:280           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:312           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:313           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:314           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:327           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:339           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:340           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:343           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:344           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:345           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:363           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:372           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:373           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:387           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:388           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:389           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:390           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:391           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:399           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:400           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:401           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:402           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:423           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:424           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:425           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:459           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:460           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:461           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:463           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:476           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:477           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:478           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:480           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:497           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:498           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:506           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:518           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:519           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:520           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:521           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:537           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:540           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:547           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:555           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:562           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:563           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:583           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:593           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:594           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:611           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:620           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:621           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:641           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:700           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:713           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:741           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:743           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:744           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:765           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:774           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:775           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:823           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+  ./game.js:837           [WEAK WARNING] 'var' is used instead of 'let' or 'const'
+
+Unused global symbol (JavaScript and TypeScript | Unused symbols)
+  Reports an unused globally accessible public function, variable, class, or property.
+  Inspection ID: JSUnusedGlobalSymbols
+
+  ./leaderboard.js:77     [WARNING] Unused property loadScores
+  ./leaderboard.js:80     [WARNING] Unused property clearScores
+  ./game.js:822           [WARNING] Unused property getState
+  ./game.js:834           [WARNING] Unused property start
+  ./game.js:835           [WARNING] Unused property quitToMenu
+  ./game.js:836           [WARNING] Unused property canvasBox
+
+Unresolved reference (JavaScript and TypeScript | General)
+  Reports an unresolved reference in JavaScript code.
+  Inspection ID: JSUnresolvedReference
+
+  ./game.js:153     [WEAK WARNING] Unresolved variable webkitAudioContext
+
+JQuery selector can be optimized (JavaScript and TypeScript | General)
+  Reports a duplicated jQuery selector that can be cached or a usage of an attribute or a pseudo-selector (optional).
+  Inspection ID: JSJQueryEfficiency
+
+  ./game.js:538     [WARNING] Duplicated jQuery selector
+  ./game.js:541     [WARNING] Duplicated jQuery selector
+  ./game.js:542     [WARNING] Duplicated jQuery selector
+  ./game.js:543     [WARNING] Duplicated jQuery selector
+  ./game.js:550     [WARNING] Duplicated jQuery selector
+  ./game.js:601     [WARNING] Duplicated jQuery selector
+  ./game.js:602     [WARNING] Duplicated jQuery selector
+
+Grammar (Proofreading)
+  Reports grammar mistakes in your text. You can configure the inspection in
+  Settings | Editor | Natural Languages | Grammar and Style.
+  Inspection ID: GrazieInspection
+
+  ./docs/PLAYTEST-REPORT-FULL90.md:24     [GRAMMAR_ERROR] A determiner may be missing.
+  ./docs/PLAYTEST-REPORT-FULL90.md:25     [GRAMMAR_ERROR] A determiner may be missing.
+  ./docs/PLAYTEST-REPORT-FULL90.md:26     [GRAMMAR_ERROR] A determiner may be missing.
+  ./README.md:20                          [GRAMMAR_ERROR] A determiner may be missing.
+  ./AI_SHOWCASE.md:9                      [GRAMMAR_ERROR] This word is normally spelled with a hyphen.
+  ./docs/PLAYTEST-REPORT.md:24            [GRAMMAR_ERROR] A determiner may be missing.
+  ./docs/PLAYTEST-REPORT.md:25            [GRAMMAR_ERROR] A determiner may be missing.
+  ./docs/PLAYTEST-REPORT.md:26            [GRAMMAR_ERROR] A determiner may be missing.
+
+Unused local symbol (JavaScript and TypeScript | Unused symbols)
+  Reports an unused locally accessible parameter, local variable, function, class, or private member declaration.
+  Inspection ID: JSUnusedLocalSymbols
+
+  ./game.js:94      [WARNING] Unused local variable hud
+  ./game.js:94      [WARNING] Unused local variable screens
+  ./game.js:298     [WARNING] Unused parameter now
+  ./game.js:362     [WARNING] Unused parameter now
+  ./game.js:424     [WARNING] Unused local variable light
+  ./game.js:590     [WARNING] Unused parameter now
+
+Unused selector (CSS)
+  Reports a CSS class or an element IDs that appears in selectors but is not used in HTML.
+  Note that complete inspection results are available only when running it via Code | Inspect Code or
+  Code | Analyze Code | Run Inspection by Name.
+  Due to performance reasons, style sheet files are not inspected on the fly.
+  Inspection ID: CssUnusedSymbol
+
+  ./booth.html:30     [WARNING] Selector first is never used
+  ./booth.html:31     [WARNING] Selector rank is never used
+  ./booth.html:32     [WARNING] Selector name is never used
+  ./booth.html:33     [WARNING] Selector meta is never used
+  ./booth.html:34     [WARNING] Selector pts is never used
+  ./style.css:127     [WARNING] Selector urgent is never used
+  ./style.css:135     [WARNING] Selector hot is never used
+  ./style.css:182     [WARNING] Selector mode-card is never used
+  ./style.css:197     [WARNING] Selector mode-card is never used
+  ./style.css:240     [WARNING] Selector rank is never used
+  ./style.css:241     [WARNING] Selector name is never used
+  ./style.css:242     [WARNING] Selector mode-tag is never used
+  ./style.css:243     [WARNING] Selector pts is never used
+  ./style.css:244     [WARNING] Selector empty is never used
+  ./style.css:266     [WARNING] Selector rank-S is never used
+  ./style.css:267     [WARNING] Selector rank-A is never used
+  ./style.css:269     [WARNING] Selector rank-C is never used
+  ./style.css:352     [WARNING] Selector mode-card is never used
+
