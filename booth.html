@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud9 Flick Shot Frenzy — Booth Leaderboard</title>
+<meta name="description" content="Live local leaderboard for the Cloud9 Flick Shot Frenzy booth display. Works offline.">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { background: #050b16; }
+  #booth { max-width: 1100px; margin: 0 auto; padding: 24px 16px; min-height: 100vh; display: flex; flex-direction: column; }
+  .booth-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .booth-head h1 { font-size: clamp(34px, 5vw, 54px); font-weight: 900; font-style: italic; color: #fff; text-shadow: 0 4px 30px rgba(0,144,255,.65); }
+  .booth-head h1 span { color: var(--c9-blue); }
+  #booth-clock { font-size: 26px; font-weight: 800; color: var(--c9-light); font-variant-numeric: tabular-nums; }
+  .booth-tabs { display: flex; gap: 8px; margin: 18px 0 14px; flex-wrap: wrap; }
+  .booth-tab {
+    background: rgba(0,144,255,.1); border: 1px solid rgba(0,144,255,.4); color: var(--ink);
+    font: 800 13px system-ui, sans-serif; letter-spacing: .08em; padding: 9px 16px;
+    border-radius: 999px; cursor: pointer;
+  }
+  .booth-tab.active { background: var(--c9-blue); color: #fff; }
+  #booth-list { list-style: none; }
+  #booth-list li {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 13px 18px; margin-bottom: 8px;
+    background: rgba(14,34,66,.85); border: 1px solid rgba(0,144,255,.3); border-radius: 12px;
+    font-size: 22px;
+  }
+  #booth-list li.first { border-color: var(--gold); box-shadow: 0 0 24px rgba(255,201,60,.3); }
+  #booth-list li .rank { color: var(--gold); font-weight: 900; width: 44px; font-size: 26px; }
+  #booth-list li .name { font-weight: 900; letter-spacing: .06em; }
+  #booth-list li .meta { color: var(--muted); font-size: 14px; }
+  #booth-list li .pts { margin-left: auto; font-weight: 900; font-variant-numeric: tabular-nums; }
+  #booth-empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 20px; line-height: 1.7; }
+  #booth-empty b { color: #fff; font-size: 30px; display: block; font-style: italic; }
+  .booth-foot { margin-top: auto; padding-top: 20px; display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+  .booth-foot a { color: var(--c9-light); }
+</style>
+</head>
+<body>
+<div id="booth">
+  <div class="booth-head">
+    <h1>FLICK SHOT <span>FRENZY</span> — TOP 10</h1>
+    <span id="booth-clock">--:--:--</span>
+  </div>
+  <div class="booth-tabs" id="booth-tabs">
+    <button class="booth-tab active" data-mode="all" type="button">ALL MODES</button>
+    <button class="booth-tab" data-mode="precision" type="button">PRECISION</button>
+    <button class="booth-tab" data-mode="reflex" type="button">REFLEX</button>
+    <button class="booth-tab" data-mode="chaos" type="button">CHAOS</button>
+  </div>
+  <ol id="booth-list"></ol>
+  <div id="booth-empty" style="display:none">
+    <b>NO SCORES YET</b>
+    Be the first legend at this booth.<br>90 seconds. One mouse. Beat the board.
+  </div>
+  <div class="booth-foot">
+    <span>Local leaderboard — stored on this machine, no Wi-Fi needed. Refreshes live.</span>
+    <span><a href="index.html">← Back to the game</a></span>
+  </div>
+</div>
+<script src="leaderboard.js"></script>
+<script src="booth.js"></script>
+</body>
+</html>

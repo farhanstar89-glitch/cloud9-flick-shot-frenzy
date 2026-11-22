@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud9 Flick Shot Frenzy — Event Mini Game</title>
+<meta name="description" content="Cloud9 Flick Shot Frenzy: a mouse-only flick-shot arcade game for Cloud9 event booths. 90-second rounds, three modes, local leaderboard. Built with JetBrains WebStorm.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">9</span>
+      <span class="brand-name">CLOUD9 <b>FLICK SHOT FRENZY</b></span>
+    </div>
+    <div class="top-actions">
+      <button id="btn-mute" class="chip-btn" type="button">SOUND: ON</button>
+      <button id="btn-booth" class="chip-btn" type="button">BOOTH DISPLAY ↗</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="game-canvas" width="960" height="600"></canvas>
+
+    <!-- HUD (visible while playing / paused) -->
+    <div id="hud" class="hidden">
+      <div class="hud-left">
+        <span id="hud-time" class="hud-time">1:30</span>
+        <span id="hud-acc" class="hud-acc">ACC 100%</span>
+      </div>
+      <div class="hud-mid">
+        <span id="hud-score" class="hud-score">0</span>
+        <span id="hud-combo" class="hud-combo"></span>
+        <span id="hud-frenzy" class="hud-frenzy" style="display:none"></span>
+      </div>
+      <div class="hud-right">
+        <button id="btn-pause" class="chip-btn" type="button">II PAUSE</button>
+      </div>
+    </div>
+
+    <!-- MENU -->
+    <div id="screen-menu" class="screen">
+      <h1>FLICK SHOT<br><span>FRENZY</span></h1>
+      <p class="tagline">The Cloud9 booth aim-trainer. Click the targets. Skip the dark ones.<br>90 seconds. One mouse. No mercy.</p>
+      <div id="mode-cards" class="mode-cards"></div>
+      <div class="menu-bottom">
+        <div class="howto">
+          <b>HOW TO PLAY</b>
+          <p>Click a target to score. Consecutive hits build your combo multiplier (up to ×5).
+          Golden targets are worth 500 and trigger an 8-second FRENZY (double points).
+          Exactly one golden target appears every round, at a random moment —
+          every player gets the same jackpot chance.
+          In Chaos mode, never click the dark targets — they cost 50 points and break your combo.</p>
+        </div>
+        <div class="top5">
+          <b>LOCAL TOP 5</b>
+          <ol id="menu-top5"></ol>
+        </div>
+      </div>
+      <p class="foot">Original game — no Riot assets, names or music. Runs fully offline. Built with JetBrains WebStorm.</p>
+    </div>
+
+    <!-- PAUSED -->
+    <div id="screen-paused" class="screen overlay hidden">
+      <h2>PAUSED</h2>
+      <p>Take a breath, champ.</p>
+      <div class="btn-row">
+        <button id="btn-resume" class="big-btn" type="button">RESUME</button>
+        <button id="btn-quit" class="big-btn ghost" type="button">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <!-- SCORE -->
+    <div id="screen-score" class="screen overlay hidden">
+      <p id="score-mode-label" class="score-mode">Precision — 90s round</p>
+      <h2>TIME!</h2>
+      <div class="final-row">
+        <div>
+          <span class="final-label">FINAL SCORE</span>
+          <span id="final-score" class="final-score">0</span>
+        </div>
+        <div id="final-rank" class="rank-badge rank-B">B</div>
+      </div>
+      <div id="final-stats" class="final-stats"></div>
+      <div class="save-row">
+        <label for="initials">YOUR TAG</label>
+        <input id="initials" maxlength="6" placeholder="ACE" autocomplete="off" spellcheck="false">
+        <button id="btn-save-score" class="big-btn" type="button">SAVE SCORE</button>
+      </div>
+      <p id="save-note" class="save-note"></p>
+      <div class="btn-row">
+        <button id="btn-again" class="big-btn" type="button">PLAY AGAIN</button>
+        <button id="btn-menu" class="big-btn ghost" type="button">CHANGE MODE</button>
+      </div>
+      <p class="auto-note">Auto-returns to the menu in 25s — ready for the next player.</p>
+    </div>
+
+    <!-- ATTRACT -->
+    <div id="attract" class="attract hidden">
+      <p>☁️ CLOUD9 FLICK SHOT FRENZY ☁️</p>
+      <p class="attract-big">TAP TO PLAY</p>
+      <p>90 seconds · mouse only · beat the top score</p>
+    </div>
+  </main>
+
+  <footer id="bottombar">
+    <span>Cloud9 x JetBrains: Sky's The Limit Hackathon 2026 — Category 3: Event Mini Game</span>
+    <span>ESC pauses · Enter starts</span>
+  </footer>
+</div>
+
+<script src="leaderboard.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
