@@ -24,10 +24,15 @@
   }
 
   function saveScores(arr) {
+    // Caller does the trimming; this only persists. Returns false when the
+    // write itself failed (private mode, quota, file:// denial) so the
+    // caller can report it instead of claiming a save that never happened.
     try {
-      global.localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, MAX_STORED)));
+      global.localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+      return true;
     } catch (e) {
       /* storage full / private mode — leaderboard is best-effort */
+      return false;
     }
   }
 
@@ -54,13 +59,31 @@
       shots: entry.shots || 0,
       acc: entry.acc || 0,
       bestCombo: entry.bestCombo || 0,
+      durationMs: Math.round(entry.durationMs || 0),
       date: entry.date || new Date().toISOString()
     };
     scores.push(clean);
     scores.sort(function (a, b) { return b.score - a.score; });
-    saveScores(scores);
+    var rank = scores.indexOf(clean) + 1;
+    // Trim to MAX_STORED overall, but never drop a mode's top 10: scores
+    // are truncated globally, so a low score in a rarely played mode must
+    // still survive on its own booth tab instead of vanishing silently.
+    var kept = scores.slice(0, MAX_STORED);
+    ['precision', 'reflex', 'chaos', 'track'].forEach(function (m) {
+      var top = scores.filter(function (s) { return s.mode === m; }).slice(0, 10);
+      top.forEach(function (s) { if (kept.indexOf(s) === -1) kept.push(s); });
+    });
+    kept.sort(function (a, b) { return b.score - a.score; });
+    var written = saveScores(kept);
     notifyScoresChanged();
-    return { entry: clean, rank: scores.indexOf(clean) + 1, total: scores.length };
+    var stored = written && kept.indexOf(clean) !== -1;
+    return {
+      entry: clean,
+      rank: rank,
+      total: kept.length,
+      saved: stored,
+      error: !written ? 'storage' : (!stored ? 'rank' : null)
+    };
   }
 
   function topScores(mode, limit) {

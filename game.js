@@ -128,6 +128,9 @@
   var lastActivityAt = Date.now();
   var attractOn = false;
   var roundResult = null;
+  var pauseStartedAt = 0; // performance.now() when the current pause began
+  var countdownHiddenAt = 0; // performance.now() when hidden mid-countdown
+  var scoreSaved = false; // guard: one save per round, Enter included
   var audioCtx = null;
   // Track mode: hold-to-track state
   var tracking = null; // { id } while the mouse button is held on the mover
@@ -162,7 +165,9 @@
   }
 
   function fmtClock(ms) {
-    var total = Math.max(0, Math.floor(ms / 1000));
+    // Ceil so a fresh 60s round reads 1:00 (not 0:59) and the final second
+    // reads 0:01 (not 0:00) — a countdown should never show time it has.
+    var total = Math.max(0, Math.ceil(ms / 1000));
     return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
   }
 
@@ -177,7 +182,10 @@
         audioCtx = new AC();
       } catch (e) { audioCtx = null; }
     }
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      var rp = audioCtx.resume();
+      if (rp && rp.catch) rp.catch(function () { /* autoplay policy */ });
+    }
     return audioCtx;
   }
 
@@ -318,10 +326,17 @@
       t.r = t.r0 * shrink;
       t.pulse += dt / 100;
     }
-    // spawn cadence, ramps with round progress; frenzy spawns faster
+    // spawn cadence, ramps with round progress; frenzy spawns faster.
+    // The golden target bypasses the max-targets cap: in Track (maxTargets
+    // 1, 120s lifetime) an uncaptured mover would otherwise block the one
+    // promised jackpot chance for the whole round. And when the golden is
+    // the only live Track target, normal spawns continue so the round
+    // never stalls waiting for the player to take it.
+    var goldenDue = goldenSpawned === 0 && now >= goldenAt;
+    var onlyGoldenAlive = cfg.track && targets.length === 1 && targets[0].golden;
     var interval = cfg.spawnMs + (cfg.spawnMsEnd - cfg.spawnMs) * progress01(now);
     if (frenzyActive(now)) interval *= 0.66;
-    if (targets.length < cfg.maxTargets && now - lastSpawnAt >= interval) {
+    if ((targets.length < cfg.maxTargets || goldenDue || onlyGoldenAlive) && now - lastSpawnAt >= interval) {
       spawnTarget(now);
       lastSpawnAt = now;
     }
@@ -396,10 +411,11 @@
 
   function registerDecoy(t, now) {
     combo = 0;
+    var deducted = Math.min(DECOY_PENALTY, score);
     score = Math.max(0, score - DECOY_PENALTY);
     SFX.decoy();
     burst(t.x, t.y, '#ff5d5d', 14);
-    floaters.push({ x: t.x, y: t.y - 10, text: '-' + DECOY_PENALTY + ' DECOY!', color: '#ff7b7b', bornAt: now, life: 1100 });
+    floaters.push({ x: t.x, y: t.y - 10, text: '-' + deducted + ' DECOY!', color: '#ff7b7b', bornAt: now, life: 1100 });
   }
 
   function burst(x, y, color, n) {
@@ -425,29 +441,46 @@
     };
   }
 
+  // Hit-test radius mirrors the rendered disc, which pulses between 94%
+  // and 106% of t.r (drawTarget). Decoys do not pulse; they use t.r.
+  function hitRadius(t) {
+    return t.decoy ? t.r : t.r * (1 + Math.sin(t.pulse) * 0.06);
+  }
+
   function onPointerDown(ev) {
+    // Only the primary button shoots / starts a hold. A right-button press
+    // must never count as a shot (the context menu is suppressed below).
+    if (ev.button !== undefined && ev.button !== 0) return;
     ev.preventDefault();
     pokeActivity();
     ensureAudio();
     if (state !== 'playing') return;
     var now = performance.now();
+    // Ignore input that lands after the round already ended but before the
+    // next animation frame processes the end (no post-deadline points).
+    if (now >= roundEndAt) return;
     var p = canvasPos(ev);
     mousePos = p;
     if (mode === 'track') {
       // Track mode: pressing on the mover starts a hold. The capture itself
       // happens in updateTargets once the ring fills — this press is the
-      // "attempt" (a shot) and its reaction time is measured here.
+      // "attempt" (a shot) and its reaction time is measured here, once per
+      // target: re-acquiring the same mover after a release must not
+      // re-record (and inflate) the reaction to it.
       for (var i = targets.length - 1; i >= 0; i--) {
         var t = targets[i];
+        if (now - t.bornAt < 90) continue; // still fading in — not clickable yet
         var d = Math.hypot(p.x - t.x, p.y - t.y);
-        if (d <= t.r) {
+        if (d <= hitRadius(t)) {
           shots++;
           if (t.decoy) {
             targets.splice(i, 1);
             registerDecoy(t, now);
           } else {
-            if (!tracking) { reactionSum += now - t.bornAt; reactionCount++; }
-            tracking = { id: t.id };
+            if (!tracking) {
+              if (!t.reacted) { reactionSum += now - t.bornAt; reactionCount++; t.reacted = true; }
+              tracking = { id: t.id };
+            }
           }
           updateHud(now);
           return;
@@ -462,8 +495,9 @@
     // topmost target first (last spawned = on top)
     for (var j = targets.length - 1; j >= 0; j--) {
       var t2 = targets[j];
+      if (now - t2.bornAt < 90) continue; // still fading in — not clickable yet
       var d2 = Math.hypot(p.x - t2.x, p.y - t2.y);
-      if (d2 <= t2.r) {
+      if (d2 <= hitRadius(t2)) {
         targets.splice(j, 1);
         if (t2.decoy) registerDecoy(t2, now);
         else registerHit(t2, now, p.x, p.y);
@@ -475,7 +509,11 @@
     updateHud(now);
   }
 
-  function endTracking() { tracking = null; }
+  // Ending a hold without a capture is a failed attempt: it breaks the
+  // consecutive-hit combo, like an empty-space miss. (A pause clears the
+  // hold separately in togglePause without breaking the combo — pausing
+  // is not an attempt outcome. Target expiry also leaves combo alone.)
+  function endTracking(breakCombo) { if (tracking && breakCombo) combo = 0; tracking = null; }
 
   /* ------------------------------------------------------------------ */
   /* Rendering                                                           */
@@ -682,8 +720,8 @@
     if (frenzyActive(now)) {
       $('hud-frenzy').textContent = 'FRENZY ' + fmtTime(frenzyUntil - now) + ' — 2x POINTS';
     }
-    var acc = shots > 0 ? Math.round(hits / shots * 100) : 100;
-    $('hud-acc').textContent = 'ACC ' + acc + '%';
+    var acc = shots > 0 ? Math.round(hits / shots * 100) : 0;
+    $('hud-acc').textContent = shots > 0 ? 'ACC ' + acc + '%' : 'ACC —';
     // time urgency
     $('hud-time').classList.toggle('urgent', timeLeft <= 10000);
   }
@@ -706,8 +744,9 @@
     }
     el.innerHTML = list.map(function (s, i) {
       return '<li><span class="rank">' + (i + 1) + '</span><span class="name">' +
-        escapeHtml(s.name) + '</span><span class="mode-tag">' + s.mode + '</span><span class="pts">' +
-        s.score.toLocaleString('en-US') + '</span></li>';
+        escapeHtml(s.name) + '</span><span class="mode-tag">' + s.mode + '</span>' +
+        (s.durationMs ? '<span class="dur-tag">' + Math.round(s.durationMs / 1000) + 's</span>' : '') +
+        '<span class="pts">' + s.score.toLocaleString('en-US') + '</span></li>';
     }).join('');
   }
 
@@ -745,7 +784,7 @@
     $('final-rank').className = 'rank-badge rank-' + roundResult.rank;
     var statsHtml =
       '<div><b>' + hits + '/' + shots + '</b><span>hits / shots</span></div>' +
-      '<div><b>' + acc + '%</b><span>accuracy</span></div>' +
+      '<div><b>' + (shots > 0 ? acc + '%' : '—') + '</b><span>accuracy</span></div>' +
       '<div><b>' + bestCombo + '</b><span>best combo</span></div>' +
       '<div><b>' + (avgReact ? avgReact + ' ms' : '—') + '</b><span>avg reaction</span></div>' +
       '<div><b>' + goldenHit + '</b><span>golden hit</span></div>';
@@ -754,25 +793,36 @@
     }
     $('final-stats').innerHTML = statsHtml;
     $('score-mode-label').textContent = MODES[mode].label + ' — ' + Math.round(roundDurationMs / 1000) + 's round';
-    // initials entry (arcade style)
+    // initials entry (arcade style) — focus only after the screen is
+    // visible, or focus() silently fails into the hidden ancestor.
     var input = $('initials');
     input.value = '';
-    input.focus();
     showScreen('score');
+    input.focus();
     lastActivityAt = Date.now();
     renderMenuLeaderboard();
   }
 
   function saveScoreAndShow() {
+    // One save per round: Enter on the initials field must not append the
+    // same score again (the button alone being disabled is not enough).
+    if (scoreSaved) return;
+    scoreSaved = true;
     var name = ($('initials').value || 'ACE').toUpperCase();
     var res = window.C9Leaderboard.addScore({
       name: name, score: roundResult.score, mode: roundResult.mode,
       hits: roundResult.hits, shots: roundResult.shots, acc: roundResult.acc,
-      bestCombo: roundResult.bestCombo
+      bestCombo: roundResult.bestCombo, durationMs: roundResult.durationMs
     });
-    $('save-note').textContent = res.rank <= 10
-      ? 'Saved! You rank #' + res.rank + ' on the local leaderboard.'
-      : 'Saved! (Rank #' + res.rank + ' — top 10 shown at the booth.)';
+    if (!res.saved) {
+      $('save-note').textContent = res.error === 'storage'
+        ? 'Could not save — browser storage is unavailable.'
+        : 'Outside the Top 100 — not saved to the board.';
+    } else {
+      $('save-note').textContent = res.rank <= 10
+        ? 'Saved! You rank #' + res.rank + ' on the local leaderboard.'
+        : 'Saved! (Rank #' + res.rank + ' — top 10 shown at the booth.)';
+    }
     $('btn-save-score').disabled = true;
     renderMenuLeaderboard();
   }
@@ -801,6 +851,7 @@
     roundEndAt = roundStartAt + duration;
     goldenAt = roundStartAt + duration * rand(0.2, 0.8);
     $('btn-save-score').disabled = false;
+    scoreSaved = false;
     $('save-note').textContent = '';
     showScreen('playing');
     updateHud(performance.now());
@@ -838,8 +889,22 @@
   function togglePause() {
     if (state === 'playing') {
       state = 'paused';
+      pauseStartedAt = performance.now();
+      // A paused hold is interrupted, not failed: clear it without
+      // breaking the combo (endTracking(true) would punish the pause).
+      tracking = null;
       showScreen('paused');
     } else if (state === 'paused') {
+      // Shift every wall-clock deadline by the paused duration, so a pause
+      // never eats round time, expires targets, or burns frenzy.
+      var pausedMs = pauseStartedAt ? performance.now() - pauseStartedAt : 0;
+      roundStartAt += pausedMs; roundEndAt += pausedMs;
+      countdownStartAt += pausedMs; goldenAt += pausedMs;
+      if (frenzyUntil) frenzyUntil += pausedMs;
+      lastSpawnAt += pausedMs;
+      targets.forEach(function (t) { t.bornAt += pausedMs; if (t.steerAt) t.steerAt += pausedMs; });
+      pauseStartedAt = 0;
+      lastFrameAt = performance.now();
       state = 'playing';
       showScreen('playing');
     }
@@ -860,7 +925,10 @@
 
   function frame(now) {
     rafId = requestAnimationFrame(frame);
-    var dt = Math.min(50, now - (lastFrameAt || now));
+    // Cap the per-frame delta at 100ms (was 50): at low frame rates the
+    // round clock is wall time, so a tighter cap makes Track captures and
+    // movement lag real time by up to 2x for no benefit.
+    var dt = Math.min(100, now - (lastFrameAt || now));
     lastFrameAt = now;
 
     drawBackground(now);
@@ -903,7 +971,9 @@
   function syncDurationUI() {
     var d = settings.durationMs || BOOTH_MS;
     document.querySelectorAll('.duration-btn').forEach(function (b) {
-      b.classList.toggle('active', Number(b.dataset.duration) === d);
+      var active = Number(b.dataset.duration) === d;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
     document.querySelectorAll('.mode-play').forEach(function (el) {
       el.textContent = 'PLAY — ' + Math.round(d / 1000) + 's';
@@ -960,9 +1030,9 @@
     // controls
     canvas.addEventListener('pointerdown', onPointerDown);
     canvas.addEventListener('pointermove', function (ev) { mousePos = canvasPos(ev); });
-    canvas.addEventListener('pointerup', endTracking);
-    canvas.addEventListener('pointercancel', endTracking);
-    canvas.addEventListener('pointerleave', endTracking);
+    canvas.addEventListener('pointerup', function () { endTracking(true); });
+    canvas.addEventListener('pointercancel', function () { endTracking(true); });
+    canvas.addEventListener('pointerleave', function () { endTracking(true); });
     canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     document.addEventListener('pointerdown', pokeActivity, true);
     document.addEventListener('keydown', function (e) {
@@ -973,17 +1043,50 @@
         if (state === 'playing' || state === 'paused') togglePause();
         else if (state === 'score') quitToMenu();
       }
-      if (e.key === 'Enter' && state === 'menu') startCountdown(mode);
+      if (e.key === 'Enter' && state === 'menu') {
+        // Enter on a focused button must trigger that button's own click,
+        // not start a round with the previously selected mode (and then
+        // let the click land on the newly hidden menu). Bare Enter on the
+        // page body starts a round with the last-used mode.
+        var tag = e.target && e.target.tagName;
+        if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'A') return;
+        e.preventDefault();
+        startCountdown(mode);
+      }
     });
+    // Shift the countdown's wall-clock deadlines by however long the page
+    // was hidden, so returning late never starts (or ends) a round early.
+    function shiftRoundTimes(ms) {
+      countdownStartAt += ms; roundStartAt += ms; roundEndAt += ms; goldenAt += ms;
+    }
     document.addEventListener('visibilitychange', function () {
       if (document.hidden && state === 'playing') togglePause(); // booth safety
+      else if (document.hidden && state === 'countdown') countdownHiddenAt = performance.now();
+      else if (!document.hidden && state === 'countdown' && countdownHiddenAt) {
+        shiftRoundTimes(performance.now() - countdownHiddenAt);
+        countdownHiddenAt = 0;
+      }
+    });
+    window.addEventListener('blur', function () {
+      // Losing window focus pauses play (booth safety); a hidden countdown
+      // is shifted instead, so it cannot expire while nobody is watching.
+      if (state === 'playing') togglePause();
+      else if (state === 'countdown' && !countdownHiddenAt) countdownHiddenAt = performance.now();
+    });
+    window.addEventListener('focus', function () {
+      if (state === 'countdown' && countdownHiddenAt) {
+        shiftRoundTimes(performance.now() - countdownHiddenAt);
+        countdownHiddenAt = 0;
+      }
     });
 
     $('btn-pause').addEventListener('click', togglePause);
     $('btn-resume').addEventListener('click', togglePause);
-    $('btn-quit').addEventListener('click', quitToMenu);
+    // Wrap: passing quitToMenu directly would hand it the click event as
+    // the showAttract flag and land on the attract screen instead of the menu.
+    $('btn-quit').addEventListener('click', function () { quitToMenu(); });
     $('btn-again').addEventListener('click', function () { startCountdown(mode); });
-    $('btn-menu').addEventListener('click', quitToMenu);
+    $('btn-menu').addEventListener('click', function () { quitToMenu(); });
     $('btn-booth').addEventListener('click', function () { window.open('booth.html', '_blank'); });
     $('btn-staff-reset').addEventListener('click', staffReset);
     document.querySelectorAll('.duration-btn').forEach(function (btn) {
@@ -996,6 +1099,10 @@
     });
     $('btn-save-score').addEventListener('click', saveScoreAndShow);
     $('initials').addEventListener('keydown', function (e) {
+      // Typing counts as activity (the stopPropagation below would
+      // otherwise hide it from the document handler, and the score screen
+      // could auto-reset while a name is being entered).
+      pokeActivity();
       if (e.key === 'Enter') saveScoreAndShow();
       e.stopPropagation();
     });

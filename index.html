@@ -23,7 +23,7 @@
   </header>
 
   <main id="stage">
-    <canvas id="game-canvas" width="960" height="600"></canvas>
+    <canvas id="game-canvas" width="960" height="600" role="img" aria-label="Frenzy game arena. Click the moving targets to score; in Track mode, press and hold on the mover until its ring fills.">Frenzy game arena — enable JavaScript to play.</canvas>
 
     <!-- HUD (visible while playing / paused) -->
     <div id="hud" class="hidden">
@@ -104,7 +104,7 @@
     </div>
 
     <!-- ATTRACT -->
-    <div id="attract" class="attract hidden">
+    <div id="attract" class="attract hidden" role="button" tabindex="0" aria-label="Tap to play">
       <p>☁️ CLOUD9 FRENZY ☁️</p>
       <p class="attract-big">TAP TO PLAY</p>
       <p id="attract-sub">60 seconds · mouse only · beat the top score</p>

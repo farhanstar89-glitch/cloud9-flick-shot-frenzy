@@ -2,6 +2,7 @@
  * System font stack only: the game must work fully offline at a booth. */
 :root {
   --c9-blue: #0090ff;
+  --c9-blue-dark: #0073d6; /* filled buttons: white on this is ~4.8:1, passes 4.5:1 */
   --c9-light: #5cb8ff;
   --c9-dark: #0a1424;
   --c9-navy: #0e2242;
@@ -188,7 +189,7 @@ body {
   flex-wrap: wrap;
 }
 .duration-label { font-size: 11px; letter-spacing: .16em; color: var(--muted); font-weight: 800; }
-.duration-btn.active { background: var(--c9-blue); color: #fff; border-color: var(--c9-blue); }
+.duration-btn.active { background: var(--c9-blue-dark); color: #fff; border-color: var(--c9-blue-dark); }
 
 .mode-card {
   width: 240px;
@@ -310,7 +311,7 @@ body {
 
 .btn-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .big-btn {
-  background: var(--c9-blue);
+  background: var(--c9-blue-dark);
   color: #fff;
   border: none;
   font: 800 15px system-ui, sans-serif;
@@ -320,7 +321,7 @@ body {
   cursor: pointer;
   box-shadow: 0 6px 20px rgba(0,144,255,.4);
 }
-.big-btn:hover { background: #1a9dff; }
+.big-btn:hover { background: #0063b8; }
 .big-btn:disabled { opacity: .45; cursor: default; }
 .big-btn.ghost { background: transparent; border: 1px solid rgba(143,168,200,.5); color: var(--ink); box-shadow: none; }
 .auto-note { font-size: 12px; color: var(--muted); }
@@ -366,4 +367,9 @@ body {
   #screen-score h2 { font-size: 40px; }
   .final-score { font-size: 42px; }
   .brand-name { font-size: 12px; }
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .hud-time.urgent, .hud-combo.hot, .attract-big { animation: none !important; }
 }

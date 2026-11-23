@@ -36,7 +36,7 @@
       return '<li class="' + (i === 0 ? 'first' : '') + '">' +
         '<span class="rank">#' + (i + 1) + '</span>' +
         '<span class="name">' + esc(s.name) + '</span>' +
-        '<span class="meta">' + esc(s.mode) + ' · ' + s.acc + '% acc · combo ' + s.bestCombo + (when ? ' · ' + when : '') + '</span>' +
+        '<span class="meta">' + esc(s.mode) + (s.durationMs ? ' · ' + Math.round(s.durationMs / 1000) + 's' : '') + ' · ' + s.acc + '% acc · combo ' + s.bestCombo + (when ? ' · ' + when : '') + '</span>' +
         '<span class="pts">' + s.score.toLocaleString('en-US') + '</span>' +
         '</li>';
     }).join('');
