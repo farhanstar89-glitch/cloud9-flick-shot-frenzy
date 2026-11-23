@@ -39,4 +39,7 @@ data URI — no extra file, still fully offline) to `index.html` and
 
 ## Run 3 — live Pages, after the fix (2026-11-23)
 
-- *(filled in after the push — see commit history)*
+- Page load: **0.74 s**; menu visible: **0.84 s**; settled: **1.34 s**
+- No scrolling needed; all four mode cards visible (top 309, bottom 434)
+- **Console errors: 0**; failed requests: none
+- Live GIF check: `docs/gameplay.gif` serves HTTP 200, 948,692 bytes
