@@ -1,16 +1,27 @@
 # Frenzy — Cloud9 Flick-Shot Arcade
 
+![Frenzy gameplay — the four-mode menu, a golden target, and FRENZY 2× points](docs/gameplay.gif)
+
 **Frenzy** is a mouse-only flick-shot arcade game for Cloud9 event booths —
 built for the **Cloud9 x JetBrains: Sky's The Limit Hackathon 2026,
 Category 3 (Event Mini Game)**. Four modes train four different slices of
-aim skill, and a second-monitor booth display turns every round into a
-crowd event.
+aim skill — but the headline is **Track**: one roaming mover you hold your
+cursor on until its ring fills. It trains tracking, not just flicking. A
+second-monitor booth display turns every round into a crowd event.
 
 > The Cloud9 booth aim arcade. Flick the targets, track the mover, skip the
 > dark ones. 60 seconds. One mouse. No mercy.
 
 **Play it now:** https://farhanstar89-glitch.github.io/cloud9-flick-shot-frenzy/
 (open `index.html` — no install, no build step, no account, works fully offline)
+
+## Built & inspected in WebStorm
+
+Built and inspected in **JetBrains WebStorm 2026.3** (build WS-263.7307.202):
+headless inspection reports **0 errors across 199 findings** (38 warnings,
+146 weak warnings, 7 style suggestions — all non-blocking). The full report
+is in [`docs/WEBSTORM-INSPECTION.md`](docs/WEBSTORM-INSPECTION.md) and the
+`.idea/` project files are committed as evidence.
 
 ## How to play
 
@@ -94,6 +105,9 @@ can be muted from the top bar.
 | `tests/smoke_test.py` | Playwright smoke test: full loop, Track capture, Top 10, staff reset, live booth — zero console errors |
 | `tests/bot_playtest.py` | Scripted bot playtests (4 skill levels × 4 modes) |
 | `docs/PLAYTEST-REPORT-FULL90.md` | Bot results from full 90-second rounds |
+| `docs/gameplay.gif` | 10 s gameplay loop (menu → golden target → FRENZY) for the README |
+| `docs/JUDGE-PATH-TEST.md` | 30-second judge-path test: clean browser, time-to-menu, console errors |
+| `docs/WEBSTORM-INSPECTION.md` | WebStorm headless inspection report (0 errors, 199 findings) |
 | `AI_SHOWCASE.md` | AI-powered workflow story (bonus prize entry) |
 | `METHODOLOGY.md` | Approach + JetBrains tooling explanation |
 | `.idea/` | WebStorm project files (committed as tooling evidence) |
@@ -120,9 +134,10 @@ rather than hit rate; Reflex stays brutal on purpose — its tagline warns you.
 
 ## JetBrains tools
 
-- **WebStorm** (2025.3) — the IDE the project was built and inspected in.
-  See `METHODOLOGY.md` for the honest status, and `docs/idea-inspection/`
-  for the inspection report.
+- **WebStorm** (2026.3) — the IDE the project was built and inspected in.
+  See `METHODOLOGY.md` for the honest status, and
+  [`docs/WEBSTORM-INSPECTION.md`](docs/WEBSTORM-INSPECTION.md)
+  for the inspection report (0 errors across 199 findings).
 - **Junie CLI** (26.11.2) — installed; interactive use is blocked until the
   hackathon All Products Pack / AI Ultimate codes arrive (sign-in required).
   See `METHODOLOGY.md`.
