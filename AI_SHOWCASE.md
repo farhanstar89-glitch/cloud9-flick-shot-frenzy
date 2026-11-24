@@ -75,11 +75,13 @@ agent through the project's normal git credential flow.
   codebase (`docs/idea-inspection/`). The GUI needed a missing system
   library (`libXtst.so.6`); the agent diagnosed that from the launch log
   and installed it via apt.
-- **Junie CLI** is installed (26.11.2) but its interactive use is honestly
-  blocked: it needs sign-in, and the hackathon's All Products Pack / AI
-  Ultimate codes arrive by email within ~5 business days of registration.
-  The plan is a Junie review pass once the codes land — the case study does
-  not claim Junie work that did not happen.
+- **Junie** (JetBrains AI agent) ran a full review pass on 24 Nov 2026
+  01:45 WIB, once the All Products Pack / AI Ultimate codes had landed and
+  the licenses were redeemed: 12 P2 + 10 P3 findings, no P1. Every finding
+  was fixed in commit `0f2ba90` (pause fairness, leaderboard honesty, Track
+  golden/combo, keyboard + accessibility polish), and the smoke test passed
+  27/27 with 14/14 fix checks. Junie was used for review, not for writing
+  the game — the case study does not claim Junie work that did not happen.
 
 ## What AI did not do
 
